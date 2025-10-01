@@ -558,7 +558,7 @@ class SpawriousM2M_hard(SpawriousBenchmark):
 
 class ISIC2019DomainBed(MultipleDomainDataset):
     CHECKPOINT_FREQ = 300
-    ENVIRONMENTS = ["baseline", "size_20_20", "size_80_20"]
+    ENVIRONMENTS = ["baseline", "size_20_20", "size_80_20", "size_50_50"]
     
     def __init__(self, root, test_envs, hparams):
         super().__init__()
@@ -659,7 +659,7 @@ class ISICEnvironmentDataset(Dataset):
         image = Image.open(image_path).convert('RGB')
         if self.transform:
             image = self.transform(image)
-        
+        # print(f"Loaded image [{image_path}]: {image.shape} - with label: {label}")
         return image, label
 
         

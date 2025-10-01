@@ -41,7 +41,7 @@ def check_data_structure():
                 image_files.append(file)
         print(f"  Number of image files found: {len(image_files)}")
         if len(image_files) > 0:
-            print(f"  Sample files: {image_files[:5]}")
+            print(f"  Sample files: {image_files[:10]}")
     
     if os.path.exists(splits_path):
         # Verificar arquivos de split
