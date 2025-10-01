@@ -117,8 +117,15 @@ class ResNet(torch.nn.Module):
             self.n_outputs = 2048
 
         if hparams['resnet50_augmix']:
-            self.network = timm.create_model('resnet50.ram_in1k', pretrained=True)
-            self.n_outputs = 2048
+            try:
+                # Try to use timm model if available online
+                self.network = timm.create_model('resnet50.ram_in1k', pretrained=True)
+                self.n_outputs = 2048
+            except Exception as e:
+                print(f"Warning: Failed to load timm model due to network issues. Using torchvision ResNet50 instead: {e}")
+                # Fallback to torchvision ResNet50
+                self.network = torchvision.models.resnet50(pretrained=True)
+                self.n_outputs = 2048
 
         # self.network = remove_batch_norm_from_resnet(self.network)
 

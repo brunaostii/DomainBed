@@ -38,6 +38,7 @@ DATASETS = [
     "SpawriousM2M_easy",
     "SpawriousM2M_medium",
     "SpawriousM2M_hard",
+    "ISIC2019DomainBed"
 ]
 
 def get_dataset_class(dataset_name):
@@ -553,3 +554,112 @@ class SpawriousM2M_hard(SpawriousBenchmark):
         test = ["snow","beach","dirt","jungle"]
         combinations = self.build_type2_combination(group,test)
         super().__init__(combinations['train_combinations'], combinations['test_combinations'], root_dir, hparams['data_augmentation'])
+
+
+class ISIC2019DomainBed(MultipleDomainDataset):
+    CHECKPOINT_FREQ = 300
+    ENVIRONMENTS = ["baseline", "size_20_20", "size_80_20"]
+    
+    def __init__(self, root, test_envs, hparams):
+        super().__init__()
+        import pandas as pd
+        from PIL import Image
+        import os
+        
+        # Paths configuration
+        self.data_path = os.path.join(root, "data/ham10000/HAM10000/")
+        self.splits_path = os.path.join(root, "work/causality_master/datasplits/ham10000/splits/")
+        
+        # Transform configurations
+        transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+        augment_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ColorJitter(0.3, 0.3, 0.3, 0.3),
+            transforms.RandomGrayscale(),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        
+        self.datasets = []
+        
+        for i, env_name in enumerate(self.ENVIRONMENTS):
+            # Load train and val data for this environment
+            if hparams.get('data_augmentation', True) and (i not in test_envs):
+                env_transform = augment_transform
+            else:
+                env_transform = transform
+                
+            # Create datasets for train and val
+            train_csv_path = os.path.join(self.splits_path, f"train_{env_name}.csv")
+            val_csv_path = os.path.join(self.splits_path, f"val_{env_name}.csv")
+            
+            # Combine train and val for this environment
+            env_dataset = ISICEnvironmentDataset(
+                self.data_path, 
+                train_csv_path, 
+                val_csv_path, 
+                env_transform
+            )
+            
+            self.datasets.append(env_dataset)
+        
+        self.input_shape = (3, 224, 224)
+        self.num_classes = 2  # HAM10000 has 2 classes (benign vs malignant)
+
+
+class ISICEnvironmentDataset(Dataset):
+    """Custom dataset for ISIC2019 environment"""
+    
+    def __init__(self, data_path, train_csv_path, val_csv_path, transform):
+        import pandas as pd
+        
+        self.data_path = data_path
+        self.transform = transform
+        
+        # Load and combine train and val CSVs
+        train_df = pd.read_csv(train_csv_path)
+        val_df = pd.read_csv(val_csv_path)
+        self.df = pd.concat([train_df, val_df], ignore_index=True)
+        
+        # Create class mappings
+        self.classes = sorted(self.df['label'].unique())
+        self.class_to_idx = {cls: idx for idx, cls in enumerate(self.classes)}
+        
+    def __len__(self):
+        return len(self.df)
+    
+    def __getitem__(self, idx):
+        from PIL import Image
+        import os
+        
+        row = self.df.iloc[idx]
+        image_id = row['image_id']
+        label = row['label']
+        
+        # Try different image extensions
+        image_path = None
+        for ext in ['.jpg', '_downsampled.jpg']:
+            potential_path = os.path.join(self.data_path, f"{image_id}{ext}")
+            if os.path.exists(potential_path):
+                image_path = potential_path
+                break
+        
+        if image_path is None:
+            raise FileNotFoundError(f"Image not found for {image_id}")
+        
+        # Load and transform image
+        image = Image.open(image_path).convert('RGB')
+        if self.transform:
+            image = self.transform(image)
+        
+        return image, label
+
+        

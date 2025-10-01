@@ -12,7 +12,7 @@ def _hparams(algorithm, dataset, random_seed):
     Global registry of hyperparams. Each entry is a (default, random) tuple.
     New algorithms / networks / etc. should add entries here.
     """
-    SMALL_IMAGES = ['Debug28', 'RotatedMNIST', 'ColoredMNIST']
+    SMALL_IMAGES = ['Debug28', 'RotatedMNIST', 'ColoredMNIST', 'ISIC2019DomainBed']
 
     hparams = {}
 
@@ -229,6 +229,8 @@ def _hparams(algorithm, dataset, random_seed):
             _hparam('batch_size', 88, lambda r: int(r.uniform(70, 100)))
     elif dataset == 'DomainNet':
         _hparam('batch_size', 32, lambda r: int(2**r.uniform(3, 5)))
+    elif dataset == 'ISIC2019DomainBed':
+        _hparam('batch_size', 8, lambda r: int(2**r.uniform(2, 4)))  # Smaller batch size for memory
     else:
         _hparam('batch_size', 32, lambda r: int(2**r.uniform(3, 5.5)))
 
